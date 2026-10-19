@@ -1,0 +1,11 @@
+# Cloudflare Worker + static assets for tools.xm1221.cn/ygocalc
+name = "ygocalc"
+main = "worker.js"
+compatibility_date = "2025-09-23"
+workers_dev = true
+routes = [{ pattern = "tools.xm1221.cn/ygocalc*", zone_name = "xm1221.cn" }]
+
+[assets]
+directory = "./wwwroot"
+binding = "ASSETS"
+not_found_handling = "single-page-application"

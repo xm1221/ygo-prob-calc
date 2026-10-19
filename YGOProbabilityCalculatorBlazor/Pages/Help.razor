@@ -177,7 +177,7 @@
             }
 
             _pendingSessionService.PendingSession = session;
-            NavigationManager.NavigateTo("/", forceLoad: false);
+            NavigationManager.NavigateTo("./", forceLoad: false);
         }
         catch (Exception ex) {
             if (!_disposed) {

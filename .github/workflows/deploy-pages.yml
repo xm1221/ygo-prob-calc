@@ -1,11 +1,14 @@
-# Skeleton: Blazor WASM → Cloudflare Pages at /ygocalc (MieHelper may finish wiring).
-# Requires secrets: CLOUDFLARE_API_TOKEN
-name: Deploy Pages (ygocalc skeleton)
+# Blazor WASM → Cloudflare Worker assets at tools.xm1221.cn/ygocalc
+name: Deploy ygocalc
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
+  push:
+    branches: [dev]
+    paths:
+      - "YGOProbabilityCalculatorBlazor/**"
+      - "deploy/**"
+      - ".github/workflows/deploy-pages.yml"
 
 permissions:
   contents: read
@@ -18,23 +21,28 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Publish Blazor WASM
         run: |
           set -euo pipefail
           dotnet publish YGOProbabilityCalculatorBlazor/YGOProbabilityCalculatorBlazor.csproj \
-            -c Release -o publish-out
-          # Pages project root; base href /ygocalc/ may need csproj <BaseHref> later
-          ls -la publish-out/wwwroot | head
-      - name: Upload to Cloudflare Pages (skeleton)
+            -c Release -o publish-out \
+            -p:BlazorWasmPrerendering=disable
+          rm -rf deploy/wwwroot
+          mkdir -p deploy/wwwroot
+          cp -a publish-out/wwwroot/. deploy/wwwroot/
+          ls -la deploy/wwwroot | head
+      - name: Deploy Worker
+        working-directory: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ab2343f4691dfe98689e375fc23d4121
         run: |
           set -euo pipefail
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "CLOUDFLARE_API_TOKEN missing; skeleton dry-run only"
-            exit 0
+            echo "CLOUDFLARE_API_TOKEN missing"
+            exit 1
           fi
-          npx --yes wrangler@4 pages deploy publish-out/wwwroot \
-            --project-name=ygocalc \
-            --branch=main
+          npx --yes wrangler@4 deploy

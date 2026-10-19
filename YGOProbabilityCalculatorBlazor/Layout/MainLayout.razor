@@ -26,10 +26,10 @@
                         <option value="dark">@UiStrings.ThemeDark</option>
                     </select>
                     @if (IsHelpPage) {
-                        <a href="/" class="btn btn-outline-primary">@UiStrings.Back</a>
+                        <a href="./" class="btn btn-outline-primary">@UiStrings.Back</a>
                     }
                     else {
-                        <a href="/help" class="btn btn-outline-primary">@UiStrings.Help</a>
+                        <a href="help" class="btn btn-outline-primary">@UiStrings.Help</a>
                     }
                 </div>
             </div>
@@ -42,8 +42,13 @@
 </div>
 
 @code {
-    private bool IsHelpPage => new Uri(NavigationManager.Uri).AbsolutePath.TrimEnd('/')
-        .Equals("/help", StringComparison.OrdinalIgnoreCase);
+    private bool IsHelpPage {
+        get {
+            string path = new Uri(NavigationManager.Uri).AbsolutePath.TrimEnd('/');
+            return path.Equals("/help", StringComparison.OrdinalIgnoreCase)
+                || path.EndsWith("/help", StringComparison.OrdinalIgnoreCase);
+        }
+    }
     private string ThemePreference { get; set; } = "system";
 
     protected override async Task OnAfterRenderAsync(bool firstRender) {

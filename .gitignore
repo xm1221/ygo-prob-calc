@@ -3,4 +3,5 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
-YGOProbabilityCalculatorBlazor.sln.DotSettings.user
+YGOProbabilityCalculatorBlazor.sln.DotSettings.userdeploy/wwwroot/
+deploy/wwwroot/
