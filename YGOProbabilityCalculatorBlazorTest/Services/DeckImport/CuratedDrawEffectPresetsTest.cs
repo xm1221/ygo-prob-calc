@@ -31,7 +31,12 @@ public class CuratedDrawEffectPresetsTest {
             Assert.That(cardsById.TryGetValue(preset.CardId, out JsonElement card), Is.True,
                 $"Catalog does not contain card ID {preset.CardId} ({preset.Name}).");
             Assert.Multiple(() => {
-                Assert.That(card.GetProperty("name").GetString(), Is.EqualTo(preset.Name));
+                Assert.That(
+                    card.GetProperty("name").GetString() == preset.Name
+                    || (card.TryGetProperty("names", out JsonElement names)
+                        && names.EnumerateArray().Any(n => n.GetString() == preset.Name)),
+                    Is.True,
+                    $"Catalog name for {preset.CardId} should match preset or aliases ({preset.Name}).");
                 Assert.That(card.GetProperty("canonicalCardId").GetInt32(), Is.EqualTo(preset.CardId));
             });
         }

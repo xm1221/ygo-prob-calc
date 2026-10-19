@@ -1,8 +1,9 @@
+@using YGOProbabilityCalculatorBlazor.Services.Localization
 @using YGOProbabilityCalculatorBlazor.Models
 @using YGOProbabilityCalculatorBlazor.Components.Shared
 
 <div class="mb-4">
-    <h4>Combos</h4>
+    <h4>@UiStrings.Combos</h4>
     <div class="accordion" id="combosAccordion">
         @for (int index = 0; index < Combos.Count; index++) {
             <ComboEditor @key="_editorKeys[Combos[index]]"

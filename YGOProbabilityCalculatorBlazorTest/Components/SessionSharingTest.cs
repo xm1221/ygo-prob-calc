@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using YGOProbabilityCalculatorBlazor.Components.ProbabilityCalculator;
 using YGOProbabilityCalculatorBlazor.Models;
+using YGOProbabilityCalculatorBlazor.Services.Localization;
 using YGOProbabilityCalculatorBlazor.Services.Interface;
 using YGOProbabilityCalculatorBlazor.Services.Session;
 using YGOProbabilityCalculatorBlazor.Services.BackgroundCalculation;
@@ -80,8 +81,16 @@ public class SessionSharingTest {
         });
     }
 
-    private static AngleSharp.Dom.IElement Button(IRenderedFragment cut, string text) => cut.FindAll("button")
-        .Single(button => button.GetAttribute("aria-label") == text || button.TextContent.Trim().EndsWith(text, StringComparison.Ordinal));
+    private static AngleSharp.Dom.IElement Button(IRenderedFragment cut, string text) {
+        string[] labels = text switch {
+            "Calculate" => [UiStrings.Calculate, "Calculate"],
+            "Cancel" => [UiStrings.Cancel, "Cancel"],
+            "Import" => [UiStrings.Import, "Import"],
+            _ => [text]
+        };
+        return cut.FindAll("button").Single(button => labels.Any(label =>
+            button.GetAttribute("aria-label") == label || button.TextContent.Trim().EndsWith(label, StringComparison.Ordinal)));
+    }
 
     private static string Snapshot(IRenderedComponent<ProbabilityCalculatorComponent> cut) => cut.FindComponent<SessionShareButton>().Instance.Snapshot;
     private int Writes => _context.JSInterop.Invocations["sessionRecovery.update"].Count;
@@ -307,7 +316,7 @@ public class SessionSharingTest {
         await Button(cut, "Dismiss shared link").ClickAsync(new());
         await cut.InvokeAsync(() => _navigation.NavigateTo(Link(Session())));
         Assert.That(token.IsCancellationRequested, Is.False);
-        Assert.That(cut.Find("[aria-label='Cancel calculation']").HasAttribute("disabled"), Is.False);
+        Assert.That(cut.Find("[aria-label='取消计算']").HasAttribute("disabled"), Is.False);
         await Button(cut, "Load shared session").ClickAsync(new());
         Assert.That(token.IsCancellationRequested, Is.True);
         result.SetResult(new(.5, [new(0, "Obsolete", .5)]));

@@ -103,7 +103,7 @@ public partial class PinnedResultTest {
         int exactJob = _worker.Jobs.Count - 1;
         AssertPinUnchanged(previous);
         if (ending is "cancel" or "late") {
-            await _cut.Find("[aria-label='Cancel calculation']").ClickAsync(new());
+            await _cut.Find("[aria-label='取消计算']").ClickAsync(new());
         }
         else if (ending == "edit") {
             await _cut.Find("#handSize").ChangeAsync(new() { Value = "3" });

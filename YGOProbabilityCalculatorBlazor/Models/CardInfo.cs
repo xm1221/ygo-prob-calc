@@ -1,9 +1,14 @@
 namespace YGOProbabilityCalculatorBlazor.Models;
 
-/// <summary>Reusable objective fields from YGOPRODeck's cardinfo endpoint.</summary>
+/// <summary>Reusable objective fields from the bundled ygocdb-derived card catalog.</summary>
 public sealed record CardInfo {
     public int Id { get; init; }
     public string Name { get; init; } = string.Empty;
+    /// <summary>Search aliases (简中 / 旧译 / 日 / 英 / YGOPro 名等). Primary <see cref="Name"/> is also listed when present.</summary>
+    public IReadOnlyList<string> Names { get; init; } = Array.Empty<string>();
+    public int? Cid { get; init; }
+    /// <summary>YGOPro ot bitmask (OCG/TCG). Optional.</summary>
+    public int? Ot { get; init; }
     public string? Type { get; init; }
     public string? FrameType { get; init; }
     public string? Race { get; init; }
@@ -30,5 +35,41 @@ public sealed record CardInfo {
         }
 
         return ArtworkImageIds.Count > 0 ? ArtworkImageIds[0] : null;
+    }
+
+    public bool MatchesSearch(string query) {
+        if (string.IsNullOrEmpty(query)) {
+            return false;
+        }
+
+        if (Name.Contains(query, StringComparison.OrdinalIgnoreCase)) {
+            return true;
+        }
+
+        foreach (string alias in Names) {
+            if (alias.Contains(query, StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool StartsWithSearch(string query) {
+        if (string.IsNullOrEmpty(query)) {
+            return false;
+        }
+
+        if (Name.StartsWith(query, StringComparison.OrdinalIgnoreCase)) {
+            return true;
+        }
+
+        foreach (string alias in Names) {
+            if (alias.StartsWith(query, StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

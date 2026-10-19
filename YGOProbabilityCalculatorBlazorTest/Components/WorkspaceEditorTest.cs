@@ -109,7 +109,7 @@ public class WorkspaceEditorTest : CalculatorEditorTestBase {
         IRenderedComponent<ProbabilityCalculatorComponent> cut = Render();
         Task search = cut.Find("#quickCardName").InputAsync(new() { Value = "Slow" });
         await cut.Find("#quickCardName").InputAsync(new() { Value = "Manual offline" });
-        Assert.That(cut.Find(".card-search-error").TextContent, Does.Contain("unavailable"));
+        Assert.That(cut.Find(".card-search-error").TextContent, Does.Contain("不可用"));
         await cut.Find("#quickCardName").KeyDownAsync(new() { Key = "Enter" });
         pending.SetResult([new() { Id = 1, Name = "Stale result" }]);
         await search;

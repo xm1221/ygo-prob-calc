@@ -434,7 +434,7 @@ public partial class PinnedResultTest {
         Assert.That(_cut.Find(".pin-result-action").HasAttribute("disabled"), Is.True);
         AssertNoComparisonUi();
         if (completion.StartsWith("late")) {
-            await _cut.Find("[aria-label='Cancel calculation']").ClickAsync(new());
+            await _cut.Find("[aria-label='取消计算']").ClickAsync(new());
             await Accept(.842);
             if (completion == "late-success") {
                 _worker.Jobs[2].SetResult(Result(2, .1));
@@ -475,7 +475,7 @@ public partial class PinnedResultTest {
         PinnedResultSnapshot pin = Pinned;
         PinnedResultSnapshot accepted = Accepted;
         Task old = Start();
-        await _cut.Find("[aria-label='Cancel calculation']").ClickAsync(new());
+        await _cut.Find("[aria-label='取消计算']").ClickAsync(new());
         await _cut.Find("#handSize").ChangeAsync(new() { Value = "6" });
         Task current = Start();
         Assert.That(System.Text.Json.JsonSerializer.Deserialize<CalculationInput>(_worker.Inputs[2].Json)!.WorkUnits, Is.EqualTo(150_000_000));
@@ -664,7 +664,7 @@ public partial class PinnedResultTest {
         Assert.That(_context.JSInterop.Invocations["sessionRecovery.update"], Has.Count.EqualTo(writes));
         Task running = Start();
         Assert.That(_cut.Find("button[title='Copy results']").HasAttribute("disabled"), Is.True);
-        await _cut.Find("[aria-label='Cancel calculation']").ClickAsync(new());
+        await _cut.Find("[aria-label='取消计算']").ClickAsync(new());
         Assert.That(_cut.Find("button[title='Copy results']").HasAttribute("disabled"), Is.False);
         await _cut.Find("button[title='Copy results']").ClickAsync(new());
         Assert.That(_clipboard.Invocations["copyText"].Last().Arguments[0], Is.EqualTo(expected));

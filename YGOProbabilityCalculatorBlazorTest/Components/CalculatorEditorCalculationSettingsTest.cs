@@ -52,7 +52,7 @@ public class CalculatorEditorCalculationSettingsTest : CalculatorEditorTestBase 
     public async Task SettingsMenuHasFourExplicitModesAndRestoresFocusContract() {
         IRenderedComponent<ProbabilityCalculatorComponent> cut = Render(Session());
         IElement trigger = cut.Find(".calculation-settings-trigger");
-        Assert.That(trigger.GetAttribute("aria-label"), Is.EqualTo("Calculation settings"));
+        Assert.That(trigger.GetAttribute("aria-label"), Is.EqualTo("计算设置"));
         Assert.That(trigger.GetAttribute("aria-expanded"), Is.EqualTo("false"));
         await trigger.ClickAsync(new());
         Assert.That(cut.Find("#calculationSettingsPanel").HasAttribute("hidden"), Is.False);

@@ -2,6 +2,7 @@
 @using YGOProbabilityCalculatorBlazor.Services.Interface
 @using YGOProbabilityCalculatorBlazor.Components.Shared
 @using YGOProbabilityCalculatorBlazor.Services.BackgroundCalculation
+@using YGOProbabilityCalculatorBlazor.Services.Localization
 @implements IAsyncDisposable
 @inject IDeckImportService _deckImportService
 @inject ISessionService _sessionService
@@ -14,12 +15,12 @@
 <div class="calculator-workspace" @oninput="ObserveWorkspaceEdit">
     <div class="session-controls">
         <div class="session-toolbar">
-            <ActionMenu @ref="_importMenu" Text="Import" Label="Import deck">
+            <ActionMenu @ref="_importMenu" Text="@UiStrings.Import" Label="@UiStrings.ImportDeck">
                 <label class="menu-command session-file-action" for="fileInput">
-                    Import YDK
+                    @UiStrings.ImportYdk
                     <InputFile OnChange="ImportDeckFromMenu" accept=".ydk" class="session-file-input" id="fileInput" aria-label="Import YDK"/>
                 </label>
-                <button type="button" class="menu-command" @onclick="OpenYdkeFromMenu" disabled="@_isYdkeImportOpen">Import YDKe</button>
+                <button type="button" class="menu-command" @onclick="OpenYdkeFromMenu" disabled="@_isYdkeImportOpen">@UiStrings.ImportYdke</button>
             </ActionMenu>
             <button type="button" class="btn btn-outline-secondary session-action" aria-label="Save Session" @onclick="SaveCurrentSession">Save</button>
             <label class="btn btn-outline-secondary session-file-action session-action" for="sessionFileInput">
@@ -53,7 +54,7 @@
             <div class="clear-workspace-confirmation" role="group" aria-label="Confirm clearing workspace">
                 <span>Clear the current deck, categories, and combos?</span>
                 <button type="button" class="btn btn-danger" @onclick="ConfirmClearWorkspace">Clear</button>
-                <button type="button" class="btn btn-outline-secondary" @onclick="CancelClearWorkspace">Cancel</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="CancelClearWorkspace">@UiStrings.Cancel</button>
             </div>
         }
         @if (_isYdkeImportOpen) {
@@ -70,8 +71,8 @@
                        placeholder="Paste ydke://..."
                        @bind="_ydkeCode"
                        @bind:event="oninput"/>
-                <button type="submit" class="btn btn-primary">Import</button>
-                <button type="button" class="btn btn-outline-secondary" @onclick="CancelYdkeImport">Cancel</button>
+                <button type="submit" class="btn btn-primary">@UiStrings.Import</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="CancelYdkeImport">@UiStrings.Cancel</button>
             </form>
         }
     </div>
@@ -119,7 +120,7 @@
     />
 
     <details class="category-management workspace-management">
-        <summary>Categories <span class="text-body-secondary">· manage card roles</span></summary>
+        <summary>@UiStrings.Categories <span class="text-body-secondary">@UiStrings.CategoriesHint</span></summary>
         <CategoryListEditor @key="_sessionVersion"
             OnCategoriesChanged="HandleCategoriesChanged"
             OnRuleChanged="ChangeCategoryRule"
@@ -169,10 +170,10 @@
                         disabled="@(!_isCalculating && !CanCalculate)">
                     @if (_isCalculating) {
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        <span class="ms-1">Cancel</span>
+                        <span class="ms-1">@UiStrings.Cancel</span>
                     }
                     else {
-                        <span>Calculate</span>
+                        <span>@UiStrings.Calculate</span>
                     }
                 </button>
             </div>
@@ -876,7 +877,7 @@
         ReconcileCategoryColorIndices();
     }
 
-    private string CalculationCancelLabel => _isPreliminary ? "Cancel Exact upgrade" : "Cancel calculation";
+    private string CalculationCancelLabel => _isPreliminary ? "取消精确升级" : "取消计算";
 
     private Task Calculate() => CalculateModel(SelectedModel);
 

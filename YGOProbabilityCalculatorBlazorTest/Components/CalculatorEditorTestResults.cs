@@ -154,7 +154,7 @@ public sealed class CalculatorEditorTestResults : CalculatorEditorTestBase {
         try {
             await calculator.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
             IElement runningAction = cut.Find(".calculate-action > button");
-            Assert.That(runningAction.GetAttribute("aria-label"), Is.EqualTo("Cancel calculation"));
+            Assert.That(runningAction.GetAttribute("aria-label"), Is.EqualTo("取消计算"));
             Assert.That(runningAction.HasAttribute("disabled"), Is.False);
             Assert.That(cut.FindAll(".calculate-action > button"), Has.Count.EqualTo(1));
             Assert.That(cut.Find("button[title='Copy results']").HasAttribute("disabled"), Is.True);

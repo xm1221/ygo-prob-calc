@@ -1,10 +1,11 @@
 @page "/"
 @using YGOProbabilityCalculatorBlazor.Components.ProbabilityCalculator
+@using YGOProbabilityCalculatorBlazor.Services.Localization
 
-<PageTitle>Yu-Gi-Oh! Advanced Probability Calculator</PageTitle>
+<PageTitle>@UiStrings.PageTitle</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Calculate exact Yu-Gi-Oh! opening-hand and deck-combo probabilities with overlapping card categories, direct card requirements, and custom constraints." />
+    <meta name="description" content="@UiStrings.PageDescription" />
     <link rel="canonical" href="https://ygo-calculator.pages.dev/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Yu-Gi-Oh! Advanced Probability Calculator" />

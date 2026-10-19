@@ -1,4 +1,39 @@
-# Yu-Gi-Oh! Advanced Probability Calculator
+# 游戏王起手概率计算器（OCG / 简体中文）
+
+本仓库是 [SeyTi01/ygo-advanced-probability-calculator-web](https://github.com/SeyTi01/ygo-advanced-probability-calculator-web) 的 fork，面向 **OCG + 简体中文**：
+
+- **卡池**：百鸽 [ygocdb.com](https://ygocdb.com/api)（`cards.zip` / 日更校验 `cards.zip.md5`），不再使用 YGOPRODeck 全量英文 catalog
+- **界面**：计算器主界面默认简体中文；卡名搜索支持简中 / 旧译 / 日文 / 英文别名
+- **系列字段**：不再对中文/日文效果文本跑上游英文 archetype 解析；请用自定义「分类」标注 combo 角色
+- **目标站点**（稍后）：`tools.xm1221.cn/ygocalc`
+
+### 本地刷新卡池
+
+```sh
+# 仅检查是否有更新（exit 0=无变化，exit 2=有更新）
+node infrastructure/card-catalog/prepare-catalog.mjs --check-update
+
+# 有更新时下载并写入 wwwroot catalog + md5
+node infrastructure/card-catalog/prepare-catalog.mjs \
+  --check-update \
+  --output YGOProbabilityCalculatorBlazor/wwwroot/data/card-catalog.v1.json
+```
+
+GitHub Actions：`.github/workflows/update-card-catalog.yml`（每天约北京时间 00:00，也可手动 `workflow_dispatch`）。
+
+
+### 已知缺口（本里程碑）
+
+- 上游英文「treated-as / archetype-from-description」已软化：卡池 `resolvedArchetypes` 为 `null`，请用自定义分类标注 combo 角色。
+- 部分依赖英文系列解析的预设概率用例（如 `OtherHandPresetTest` / Darklord cost、部分 curated effect）可能仍红；概率引擎本身未改。
+- Help 长文仍以英文为主；计算器主界面为简体中文。
+- Cloudflare Pages 部署（`tools.xm1221.cn/ygocalc`）由 MieHelper 后续处理。
+
+详情见 [infrastructure/card-catalog/README.md](infrastructure/card-catalog/README.md) 与 [SPEC-OCG-CN.md](SPEC-OCG-CN.md)。
+
+---
+
+# Yu-Gi-Oh! Advanced Probability Calculator (upstream / English)
 
 An exact opening-hand probability calculator for Yu-Gi-Oh! decks accounting for overlapping card roles and distinct physical cards for each positive requirement.
 

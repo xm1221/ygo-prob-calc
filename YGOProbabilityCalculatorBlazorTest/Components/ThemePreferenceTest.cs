@@ -20,7 +20,7 @@ public class ThemePreferenceTest {
         cut.WaitForAssertion(() => Assert.That(
             cut.Find("#theme-preference").GetAttribute("value"),
             Is.EqualTo(expectedPreference)));
-        Assert.That(cut.Find("#theme-preference").GetAttribute("aria-label"), Is.EqualTo("Color theme preference"));
+        Assert.That(cut.Find("#theme-preference").GetAttribute("aria-label"), Is.EqualTo("主题"));
     }
 
     [Test]
@@ -47,7 +47,7 @@ public class ThemePreferenceTest {
 
         Assert.That(cut.Find(".top-row .app-title").TagName, Is.EqualTo("H1"));
         Assert.That(cut.FindAll("h1"), Has.Count.EqualTo(1));
-        Assert.That(cut.Find("#theme-preference").GetAttribute("aria-label"), Is.EqualTo("Color theme preference"));
+        Assert.That(cut.Find("#theme-preference").GetAttribute("aria-label"), Is.EqualTo("主题"));
         Assert.That(cut.Find("a[href='/help']").TextContent.Trim(), Is.EqualTo("Help"));
     }
 
@@ -67,7 +67,7 @@ public class ThemePreferenceTest {
         Assert.That(cut.Find(".top-row .app-title").TagName, Is.EqualTo("DIV"));
         Assert.That(cut.FindAll("h1"), Has.Count.EqualTo(1));
         Assert.That(cut.Find("h1").TextContent, Is.EqualTo("Help page heading"));
-        Assert.That(cut.Find("#theme-preference").GetAttribute("aria-label"), Is.EqualTo("Color theme preference"));
+        Assert.That(cut.Find("#theme-preference").GetAttribute("aria-label"), Is.EqualTo("主题"));
         Assert.That(cut.Find("a[href='/']").TextContent.Trim(), Is.EqualTo("Back"));
     }
 }

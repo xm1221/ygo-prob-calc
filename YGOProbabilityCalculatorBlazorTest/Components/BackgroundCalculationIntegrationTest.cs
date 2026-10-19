@@ -72,7 +72,7 @@ public class BackgroundCalculationIntegrationTest {
 
     private Task Start() => _cut.Find(".calculate-action > button").ClickAsync(new());
 
-    private Task Cancel() => _cut.Find("[aria-label='Cancel calculation']").ClickAsync(new());
+    private Task Cancel() => _cut.Find("[aria-label='取消计算']").ClickAsync(new());
 
     private static ProbabilityCalculationResult Result(string name) => new(0.5, [new(0, name, 0.5)]);
 

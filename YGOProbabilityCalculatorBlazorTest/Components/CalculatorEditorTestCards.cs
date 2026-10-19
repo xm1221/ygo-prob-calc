@@ -35,7 +35,7 @@ public sealed class CalculatorEditorTestCards : CalculatorEditorTestBase {
         }
 
         Assert.That(cut.FindComponent<CardListEditor>().Find("h4").TextContent,
-            Is.EqualTo("Deck (2147483649)"));
+            Is.EqualTo("卡组 (2147483649)"));
         Assert.That(Button(cut, "Calculate").HasAttribute("disabled"), Is.True);
         Assert.That(cut.Markup, Does.Contain("The active deck is too large to calculate"));
 

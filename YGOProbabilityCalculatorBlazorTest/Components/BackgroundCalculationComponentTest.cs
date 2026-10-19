@@ -72,7 +72,7 @@ public class BackgroundCalculationComponentTest {
         await Progress(0, initial);
         Assert.That(task.IsCompleted, Is.False);
         Assert.That(_cut.Find(".probability-result-status").TextContent, Does.Contain("Preliminary"));
-        Assert.That(_cut.Find(".calculate-action > button").GetAttribute("aria-label"), Is.EqualTo("Cancel Exact upgrade"));
+        Assert.That(_cut.Find(".calculate-action > button").GetAttribute("aria-label"), Is.EqualTo("取消精确升级"));
         Assert.That(_cut.Find(".pin-result-action").HasAttribute("disabled"), Is.True);
         Assert.That(_cut.FindComponent<ProbabilityResultExport>().Instance.IsCalculating, Is.True);
         Assert.That(_cut.FindAll(".exact-retry:not(.exact-retry-placeholder)"), Is.Empty);
@@ -276,7 +276,7 @@ public class BackgroundCalculationComponentTest {
         Assert.That(_cut.Markup, Does.Contain("new OR result"));
     }
 
-    private Task Cancel() => _cut.Find(".calculate-action > button[aria-label='Cancel calculation']").ClickAsync(new());
+    private Task Cancel() => _cut.Find(".calculate-action > button[aria-label='取消计算']").ClickAsync(new());
     private Task SetHandSizeWithoutInvalidating(int value) => _cut.InvokeAsync(() => {
         BindingFlags instanceNonPublic = BindingFlags.Instance | BindingFlags.NonPublic;
         FieldInfo handSizeField = typeof(ProbabilityCalculatorComponent).GetField("_handSize", instanceNonPublic)!;
@@ -301,7 +301,7 @@ public class BackgroundCalculationComponentTest {
         }
         await first;
         Assert.That(_cut.Find(".calculate-action > button").HasAttribute("disabled"), Is.False);
-        Assert.That(_cut.FindAll(".calculate-action > button[aria-label='Cancel calculation']"), Has.Count.EqualTo(1));
+        Assert.That(_cut.FindAll(".calculate-action > button[aria-label='取消计算']"), Has.Count.EqualTo(1));
         Assert.That(_cut.Markup, Does.Not.Contain("old failure").And.Not.Contain("old success"));
         _calculator.Jobs[1].SetResult(Result("new success"));
         await second;
@@ -317,8 +317,8 @@ public class BackgroundCalculationComponentTest {
         await SetHandSizeWithoutInvalidating(2);
         Task calculation = Start();
         AngleSharp.Dom.IElement runningButton = _cut.Find(".calculate-action > button");
-        Assert.That(runningButton.GetAttribute("aria-label"), Is.EqualTo("Cancel calculation"));
-        Assert.That(runningButton.GetAttribute("title"), Is.EqualTo("Cancel calculation"));
+        Assert.That(runningButton.GetAttribute("aria-label"), Is.EqualTo("取消计算"));
+        Assert.That(runningButton.GetAttribute("title"), Is.EqualTo("取消计算"));
         Assert.That(runningButton.GetAttribute("type"), Is.EqualTo("button"));
         Assert.That(runningButton.GetAttribute("aria-busy"), Is.EqualTo("true"));
         Assert.That(runningButton.HasAttribute("disabled"), Is.False);
@@ -355,7 +355,7 @@ public class BackgroundCalculationComponentTest {
         Task cancellation = Start();
 
         Assert.That(_cut.FindAll(".calculate-action > button"), Has.Count.EqualTo(1));
-        Assert.That(_cut.Find(".calculate-action > button").GetAttribute("aria-label"), Is.EqualTo("Cancel calculation"));
+        Assert.That(_cut.Find(".calculate-action > button").GetAttribute("aria-label"), Is.EqualTo("取消计算"));
         await Cancel();
         Assert.That(_calculator.Tokens[1].IsCancellationRequested, Is.True);
         Assert.That(_cut.Find(".calculate-action > button").TextContent, Does.Contain("Calculate"));
@@ -515,7 +515,7 @@ public class BackgroundCalculationComponentTest {
             _calculator.Jobs[i].SetResult(Result("old"));
         }
         await Task.WhenAll(priorCalculations);
-        Assert.That(_cut.FindAll("[aria-label='Cancel calculation']"), Has.Count.EqualTo(1));
+        Assert.That(_cut.FindAll("[aria-label='取消计算']"), Has.Count.EqualTo(1));
         _calculator.Jobs[5].SetResult(Result("last"));
         await last;
         Assert.That(_cut.Markup, Does.Contain("last"));

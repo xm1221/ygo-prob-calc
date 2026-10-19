@@ -66,7 +66,7 @@ public class CardArtworkOwnershipTest {
         IRenderedComponent<CardArtwork> thumbnail = editor.FindComponents<CardArtwork>().First();
         await thumbnail.InvokeAsync(() => thumbnail.Instance.ArtworkReady(1, success ? CardArtworkService.ArtworkOrigin + "/small/1234.jpg" : null));
         Assert.That(tokens[1].IsCancellationRequested, Is.False);
-        Assert.That(cut.FindAll("[aria-label='Cancel calculation']"), Has.Count.EqualTo(1));
+        Assert.That(cut.FindAll("[aria-label='取消计算']"), Has.Count.EqualTo(1));
         Assert.That(cut.Find(".probability-results").OuterHtml, Is.EqualTo(resultMarkup));
         Assert.That(editor.Find("#cardCategory0").GetAttribute("value"), Is.EqualTo(category.Identity));
         string currentBytes = context.Services.GetRequiredService<ISessionService>().SerializeSession(session);

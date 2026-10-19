@@ -185,8 +185,8 @@ public sealed class CalculatorEditorDrawEffectsTest : CalculatorEditorTestBase {
         Assert.That(cut.FindAll(".calculation-settings-trigger").ToArray(), Has.Length.EqualTo(1));
         Assert.That(cut.FindAll(".draw-effects-control, .draw-effects-help").ToArray(), Is.Empty);
         IElement trigger = cut.Find(".calculation-settings-trigger");
-        Assert.That(trigger.GetAttribute("aria-label"), Is.EqualTo("Calculation settings"));
-        Assert.That(trigger.GetAttribute("title"), Is.EqualTo("Calculation settings"));
+        Assert.That(trigger.GetAttribute("aria-label"), Is.EqualTo("计算设置"));
+        Assert.That(trigger.GetAttribute("title"), Is.EqualTo("计算设置"));
         Assert.That(trigger.GetAttribute("aria-expanded"), Is.EqualTo("false"));
         Assert.That(cut.Find("#calculationSettingsPanel").HasAttribute("hidden"), Is.True);
 

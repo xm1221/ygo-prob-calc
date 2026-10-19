@@ -1,3 +1,4 @@
+@using YGOProbabilityCalculatorBlazor.Services.Localization
 @using YGOProbabilityCalculatorBlazor.Services.Interface
 @using Microsoft.JSInterop
 @using YGOProbabilityCalculatorBlazor.Models
@@ -8,8 +9,8 @@
     <button @ref="_trigger"
             type="button"
             class="btn btn-outline-secondary calculation-settings-trigger"
-            aria-label="Calculation settings"
-            title="Calculation settings"
+            aria-label="@UiStrings.Settings"
+            title="@UiStrings.Settings"
             aria-haspopup="dialog"
             aria-expanded="@(_isOpen ? "true" : "false")"
             aria-controls="calculationSettingsPanel"
@@ -22,26 +23,26 @@
              role="dialog"
              aria-labelledby="calculationSettingsHeading"
              hidden="@(!_isOpen)">
-        <h2 id="calculationSettingsHeading" class="h6 fw-bold text-center mb-3">Calculation settings</h2>
+        <h2 id="calculationSettingsHeading" class="h6 fw-bold text-center mb-3">@UiStrings.Settings</h2>
 
         <section aria-labelledby="drawSimulationHeading">
-            <h3 id="drawSimulationHeading" class="small fw-semibold mb-2">Card simulation</h3>
-            <label class="form-label mb-1" for="calculationModel">Calculation model</label>
+            <h3 id="drawSimulationHeading" class="small fw-semibold mb-2">@UiStrings.CardSimulation</h3>
+            <label class="form-label mb-1" for="calculationModel">@UiStrings.CalculationModel</label>
             <select @ref="_drawEffectsInput" id="calculationModel" class="form-select"
                     value="@(Model == CalculationModel.Fast && Strategy == FastExecutionStrategy.FastOnly ? "FastOnly" : Model.ToString())" aria-describedby="@(Model == CalculationModel.OpeningHand ? null : "drawEffectsHelp")" @onchange="OnModelChanged">
-                <option value="OpeningHand">No effect simulation</option>
-                <option value="Fast">Progressive (default)</option>
-                <option value="FastOnly">Fast only</option>
-                <option value="Exact">Exact only</option>
+                <option value="OpeningHand">@UiStrings.ModelOpeningHand</option>
+                <option value="Fast">@UiStrings.ModelProgressive</option>
+                <option value="FastOnly">@UiStrings.ModelFastOnly</option>
+                <option value="Exact">@UiStrings.ModelExactOnly</option>
             </select>
             @if (Model != CalculationModel.OpeningHand) {
                 <p id="drawEffectsHelp" class="form-text mb-0" role="note">@ModelHelp</p>
             }
             <div class="mt-3">
-                <label class="form-label mb-1" for="drawActivationPriority">Draw activation priority</label>
+                <label class="form-label mb-1" for="drawActivationPriority">@UiStrings.DrawActivationPriority</label>
                 <select id="drawActivationPriority" class="form-select" value="@Priority.Mode" @onchange="OnPriorityModeChanged">
-                    <option value="EncounterOrder">Encounter order (default)</option>
-                    <option value="CustomPriority">Custom priority</option>
+                    <option value="EncounterOrder">@UiStrings.EncounterOrder</option>
+                    <option value="CustomPriority">@UiStrings.CustomPriority</option>
                 </select>
                 @if (Priority.Mode == DrawActivationMode.CustomPriority) {
                     <div class="small text-body-secondary mt-2">Highest first</div>
@@ -73,19 +74,17 @@
         </section>
 
         <div class="border-top mt-3 pt-3 calculation-settings-option">
-            <label class="form-label mb-1" for="storageSafetyTier">Storage safety limit</label>
+            <label class="form-label mb-1" for="storageSafetyTier">@UiStrings.StorageSafetyLimit</label>
             <select id="storageSafetyTier"
                     class="form-select"
                     value="@StorageTier"
                     aria-describedby="storageSafetyHelp"
                     @onchange="OnStorageTierChanged">
-                <option value="Standard">Standard (32,768 entries / 262,144 cells)</option>
-                <option value="High">High (65,536 entries / 524,288 cells)</option>
-                <option value="VeryHigh">Very high (131,072 entries / 1,048,576 cells)</option>
+                <option value="Standard">@UiStrings.StorageStandard</option>
+                <option value="High">@UiStrings.StorageHigh</option>
+                <option value="VeryHigh">@UiStrings.StorageVeryHigh</option>
             </select>
-            <p id="storageSafetyHelp" class="form-text mb-0">
-                Higher limits may allow more complex exact calculations to complete and can use substantially more browser memory; they do not change probability accuracy.
-            </p>
+            <p id="storageSafetyHelp" class="form-text mb-0">@UiStrings.StorageHelp</p>
         </div>
     </section>
 </div>

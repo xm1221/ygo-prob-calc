@@ -148,20 +148,20 @@ public class ActiveEntriesEditorTest {
             []));
         IElement deckHeading = cut.FindComponent<CardListEditor>().Find("h4");
 
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (3)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (3)"));
 
         SetActiveAsync(cut, "#cardActive0", false).GetAwaiter().GetResult();
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (0)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (0)"));
 
         SetActiveAsync(cut, "#cardActive1", true).GetAwaiter().GetResult();
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (4)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (4)"));
 
         cut.Find("#cardCopies1").Input("6");
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (6)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (6)"));
 
         SetActiveAsync(cut, "#cardActive1", false).GetAwaiter().GetResult();
         cut.Find("#cardCopies1").Input("2");
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (0)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (0)"));
     }
 
     [Test]
@@ -174,7 +174,7 @@ public class ActiveEntriesEditorTest {
 
         cut.FindComponents<InputFile>()[0].UploadFiles(InputFileContent.CreateFromText("#main\n1\n2", "deck.ydk"));
 
-        cut.WaitForAssertion(() => Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (8)")));
+        cut.WaitForAssertion(() => Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (8)")));
     }
 
     [Test]
@@ -185,7 +185,7 @@ public class ActiveEntriesEditorTest {
         IElement deckHeading = cut.FindComponent<CardListEditor>().Find("h4");
 
         await AssertProbabilityAsync(cut, 5.0 / 6.0);
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (4)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (4)"));
 
         IRenderedComponent<CardEditor> card = cut.FindComponent<CardEditor>();
         Assert.That(card.Find(".accordion-button").GetAttribute("aria-expanded"), Is.EqualTo("false"));
@@ -197,7 +197,7 @@ public class ActiveEntriesEditorTest {
         Assert.That(card.Find(".accordion-button").GetAttribute("aria-expanded"), Is.EqualTo("false"),
             "toggling the checkbox must not expand or collapse the editor");
         AssertPreviousResult(cut);
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (2)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (2)"));
         await AssertProbabilityAsync(cut, 0.0);
 
         await SetActiveAsync(card, "#cardActive0", true);
@@ -306,10 +306,10 @@ public class ActiveEntriesEditorTest {
             [new([_a], 2, "Card")],
             [new([new(_a, 1, 2)], "Combo")]));
         IElement deckHeading = cut.FindComponent<CardListEditor>().Find("h4");
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (2)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (2)"));
         SetActiveAsync(cut, "#cardActive0", false).GetAwaiter().GetResult();
         SetActiveAsync(cut, "#comboActive0", false).GetAwaiter().GetResult();
-        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (0)"));
+        Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (0)"));
         cut.FindAll("button").Single(button => button.GetAttribute("aria-label") == "Save Session").Click();
 
         string savedJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String((string)_context.JSInterop.Invocations["saveSessionFile"].Single().Arguments[1]!));
@@ -323,7 +323,7 @@ public class ActiveEntriesEditorTest {
         cut.WaitForAssertion(() => {
             Assert.That(cut.Find("#cardActive0").TextContent.Equals("Deactivate", StringComparison.Ordinal), Is.False);
             Assert.That(cut.Find("#comboActive0").TextContent.Equals("Deactivate", StringComparison.Ordinal), Is.False);
-            Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (0)"));
+            Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (0)"));
         });
 
         const string legacyJson = """
@@ -333,7 +333,7 @@ public class ActiveEntriesEditorTest {
         cut.WaitForAssertion(() => {
             Assert.That(cut.Find("#cardActive0").TextContent.Equals("Deactivate", StringComparison.Ordinal), Is.True);
             Assert.That(cut.Find("#comboActive0").TextContent.Equals("Deactivate", StringComparison.Ordinal), Is.True);
-            Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("Deck (2)"));
+            Assert.That(deckHeading.TextContent.Trim(), Is.EqualTo("卡组 (2)"));
         });
     }
 

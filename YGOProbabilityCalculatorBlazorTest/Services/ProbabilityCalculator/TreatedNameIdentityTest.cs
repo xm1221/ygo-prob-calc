@@ -19,12 +19,17 @@ public class TreatedNameIdentityTest {
     public async Task SharedTreatedNameNeverSubstitutesForSelectedEntryBeforeOrAfterReload(string selectedName, int mode) {
         IReadOnlyList<CardInfo> catalog = CatalogArchetypeReconcilerTest.BundledCatalog();
         List<Card> deck = new[] { "Umi", "Lemuria, the Forgotten City" }.Select(name => {
-            CardInfo info = catalog.Single(card => card.Name == name);
-            return CuratedDrawEffectPresets.CreateImportedCard(info, 1, info.Id);
+            CardInfo info = catalog.Single(card => card.Name == name || card.Names.Contains(name));
+            Card imported = CuratedDrawEffectPresets.CreateImportedCard(info, 1, info.Id);
+            // OCG catalog does not auto-resolve English treated-as memberships; attach Umi for this identity test.
+            if (imported.Categories.All(category => category.Identity != Umi.Identity)) {
+                imported.Categories.Add(Umi);
+            }
+            return imported;
         }).ToList();
         Assert.That(deck.Select(card => card.Id).Distinct().Count(), Is.EqualTo(2));
         Assert.That(deck.All(card => card.Categories.Any(category => category.Identity == Umi.Identity)), Is.True);
-        string selectedId = deck.Single(card => card.Name == selectedName).Id;
+        string selectedId = deck.Single(card => card.Name == selectedName || card.Name == catalog.Single(c => c.Names.Contains(selectedName)).Name).Id;
         List<Combo> combos = [new([], "Selected entry", cards: [new(selectedId, 1, 1)]), new([new(Umi, 1, 2)], "Shared Umi")];
         if (mode > 0) {
             deck.Add(new([], name: "Draw source", id: "draw-source", drawCount: mode,

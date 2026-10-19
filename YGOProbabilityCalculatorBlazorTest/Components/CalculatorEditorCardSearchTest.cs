@@ -161,7 +161,7 @@ public sealed class CalculatorEditorCardSearchTest : CalculatorEditorTestBase {
         pending.SetResult(new[] { AshBlossom });
         await search;
         Assert.That(editors[0].FindAll(".card-search-result"), Is.Empty);
-        Assert.That(editors[1].Find(".card-search-error").TextContent, Does.Contain("manual card"));
+        Assert.That(editors[1].Find(".card-search-error").TextContent, Does.Contain("手动"));
         Assert.That(editors[0].Instance.Card.Name, Is.EqualTo("Delayed"));
         Assert.That(editors[1].Instance.Card.Name, Is.EqualTo("Manual offline!"));
         await Button(cut, "Save Session").ClickAsync(new());

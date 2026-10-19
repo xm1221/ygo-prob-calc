@@ -32,7 +32,12 @@ public sealed class IdentitySearchHandPresetTest {
             Assert.That(cardsById.TryGetValue(effect.CanonicalCardId, out JsonElement catalogCard), Is.True,
                 $"Catalog does not contain canonical ID {effect.CanonicalCardId} ({effect.Name}).");
             Assert.Multiple(() => {
-                Assert.That(catalogCard.GetProperty("name").GetString(), Is.EqualTo(effect.Name));
+                Assert.That(
+                    catalogCard.GetProperty("name").GetString() == effect.Name
+                    || (catalogCard.TryGetProperty("names", out JsonElement names)
+                        && names.EnumerateArray().Any(n => n.GetString() == effect.Name)),
+                    Is.True,
+                    effect.Name);
                 Assert.That(catalogCard.GetProperty("canonicalCardId").GetInt32(), Is.EqualTo(effect.CanonicalCardId));
                 Assert.That(catalogCard.GetProperty("artworkMetadataKnown").GetBoolean(), Is.True);
                 Assert.That(catalogCard.GetProperty("artworkImageIds").EnumerateArray().Select(imageId => imageId.GetInt32()),
@@ -239,7 +244,9 @@ public sealed class IdentitySearchHandPresetTest {
     private static CardInfo CatalogInfo(string name) {
         using JsonDocument catalog = JsonDocument.Parse(File.ReadAllText(FindCatalogPath()));
         JsonElement card = catalog.RootElement.GetProperty("cards").EnumerateArray()
-            .Single(entry => entry.GetProperty("name").GetString() == name);
+            .Single(entry => entry.GetProperty("name").GetString() == name
+                || (entry.TryGetProperty("names", out JsonElement aliasNames)
+                    && aliasNames.EnumerateArray().Any(n => n.GetString() == name)));
         return JsonSerializer.Deserialize<CardInfo>(card.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web))
             ?? throw new InvalidDataException($"Could not deserialize catalog metadata for {name}.");
     }

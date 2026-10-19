@@ -7,10 +7,11 @@ namespace YGOProbabilityCalculatorBlazor.Services.DeckImport;
 
 public class CardInfoService : ICardInfoService {
     private const string LocalCatalogUrl = "data/card-catalog.v1.json";
-    private const string CardInfoApiUrl = "https://db.ygoprodeck.com/api/v7/cardinfo.php";
-    private const string SingleApiTemplate = CardInfoApiUrl + "?id={0}";
+    private const string YgocdbCardApiTemplate = "https://ygocdb.com/api/v0/card/{0}";
+    private const string YgocdbSearchApiTemplate = "https://ygocdb.com/api/v0/?search={0}";
     private const string CacheKey = "cardCache";
-    private const int CacheSchemaVersion = 2;
+    // Bumped so English YGOPRODeck browser caches cannot poison Chinese names.
+    private const int CacheSchemaVersion = 3;
     private static readonly TimeSpan CacheTimeToLive = TimeSpan.FromDays(7);
     private const int SearchResultLimit = 20;
     private const int MaximumCatalogBytes = 20 * 1024 * 1024;
@@ -85,41 +86,26 @@ public class CardInfoService : ICardInfoService {
                 await Task.Delay(wait, _timeProvider);
             }
 
+            // Prefer ygocdb metadata; on miss, mark known-empty so the artwork worker is not polled forever.
+            // Catalog-backed passcodes already resolve above. Missing art must not break probability calc.
             _nextArtworkLookup = _timeProvider.GetUtcNow().AddMilliseconds(100);
-            using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
-            using HttpResponseMessage response = await _httpClient.GetAsync(string.Format(CultureInfo.InvariantCulture, SingleApiTemplate, id), timeout.Token);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) {
-                _missingArtwork.Add(id);
-
-                return new CardInfo { Id = id, ArtworkMetadataKnown = true };
+            CardInfo? info;
+            try {
+                info = await TryFetchYgocdbCardAsync(id);
             }
-
-            if (!response.IsSuccessStatusCode) {
-                System.Net.Http.Headers.RetryConditionHeaderValue? retry = response.Headers.RetryAfter;
-
-                throw new CardArtworkLookupException(retry?.Delta ?? (retry?.Date is DateTimeOffset date
-                    ? date - _timeProvider.GetUtcNow()
-                    : TimeSpan.FromMinutes(1))
-                );
+            catch (CardArtworkLookupException) {
+                throw;
             }
-
-            await using Stream stream = await response.Content.ReadAsStreamAsync();
-            using JsonDocument document = await JsonDocument.ParseAsync(stream);
-            JsonElement data = default;
-
-            bool hasInvalidResponseData = document.RootElement.ValueKind != JsonValueKind.Object
-                || !TryGetProperty(document.RootElement, "data", out data)
-                || data.ValueKind != JsonValueKind.Array;
-
-            if (hasInvalidResponseData) {
-                throw new CardArtworkLookupException(TimeSpan.FromMinutes(1));
-            }
-
-            CardInfo? info = data.EnumerateArray().Select(item => ReadCardInfo(item, id)).FirstOrDefault(card => card is not null);
 
             if (info is null) {
-                throw new CardArtworkLookupException(TimeSpan.FromMinutes(1));
+                _missingArtwork.Add(id);
+                info = new CardInfo { Id = id, ArtworkMetadataKnown = true };
+            }
+            else if (!info.ArtworkMetadataKnown || info.ArtworkImageIds.Count == 0) {
+                info = info with {
+                    ArtworkImageIds = info.ArtworkImageIds.Count > 0 ? info.ArtworkImageIds : [id],
+                    ArtworkMetadataKnown = true
+                };
             }
 
             // Do not hold the import/enrichment gate across artwork HTTP or storage.
@@ -163,8 +149,11 @@ public class CardInfoService : ICardInfoService {
         }
 
         IReadOnlyList<CardInfo> catalog = await _loadCatalogTask.Value;
-        // The secondary order is prepared once. Exact matches precede other
-        // prefixes in this order; locate their range without scanning the catalog.
+        List<CardInfo> prefixMatches = new(SearchResultLimit);
+        List<CardInfo> substringMatches = new(SearchResultLimit);
+        HashSet<int> seen = [];
+
+        // Prefer primary-name prefixes (catalog is sorted by Name), then alias prefixes, then substrings.
         int lower = 0;
         int upper = catalog.Count;
 
@@ -178,29 +167,46 @@ public class CardInfoService : ICardInfoService {
             }
         }
 
-        List<CardInfo> matches = new(SearchResultLimit);
-        for (int index = lower; index < catalog.Count && matches.Count < SearchResultLimit; index++) {
+        for (int index = lower; index < catalog.Count && prefixMatches.Count < SearchResultLimit; index++) {
             CardInfo card = catalog[index];
             if (!card.Name.StartsWith(normalizedQuery, StringComparison.OrdinalIgnoreCase)) {
                 break;
             }
 
-            matches.Add(card);
+            if (seen.Add(card.Id)) {
+                prefixMatches.Add(card);
+            }
         }
 
-        // Fill only the remaining slots with substrings in secondary order.
-        // Broad prefix queries never scan; broad substrings stop at the 20th hit.
         foreach (CardInfo card in catalog) {
-            if (matches.Count == SearchResultLimit) {
+            if (prefixMatches.Count == SearchResultLimit) {
                 break;
             }
 
-            if (card.Name.IndexOf(normalizedQuery, StringComparison.OrdinalIgnoreCase) > 0) {
-                matches.Add(card);
+            if (seen.Contains(card.Id)) {
+                continue;
+            }
+
+            if (card.StartsWithSearch(normalizedQuery) && seen.Add(card.Id)) {
+                prefixMatches.Add(card);
             }
         }
 
-        return matches.ToArray();
+        foreach (CardInfo card in catalog) {
+            if (prefixMatches.Count + substringMatches.Count == SearchResultLimit) {
+                break;
+            }
+
+            if (seen.Contains(card.Id)) {
+                continue;
+            }
+
+            if (card.MatchesSearch(normalizedQuery) && seen.Add(card.Id)) {
+                substringMatches.Add(card);
+            }
+        }
+
+        return prefixMatches.Concat(substringMatches).Take(SearchResultLimit).ToArray();
     }
 
     public async Task<CardInfo> GetCardInfoAsync(int id) {
@@ -286,10 +292,10 @@ public class CardInfoService : ICardInfoService {
             foreach (string name in requested) {
                 CardInfo[] matches = catalog is null
                     ? []
-                    : [.. catalog.Where(card => card.Name.Equals(name, StringComparison.Ordinal))];
+                    : [.. catalog.Where(card => NameOrAliasEquals(card, name))];
 
                 if (matches.Length == 0) {
-                    matches = [.. _cache.Cards.Values.Where(card => card.Name.Equals(name, StringComparison.Ordinal))];
+                    matches = [.. _cache.Cards.Values.Where(card => NameOrAliasEquals(card, name))];
                 }
 
                 if (matches.Length == 1 && HasMetadata(matches[0])) {
@@ -319,21 +325,27 @@ public class CardInfoService : ICardInfoService {
 
     private async Task<CardInfo?> FetchExactNameAsync(string name) {
         try {
-            using HttpResponseMessage response = await _httpClient.GetAsync($"{CardInfoApiUrl}?name={Uri.EscapeDataString(name)}").ConfigureAwait(false);
+            using HttpResponseMessage response = await _httpClient
+                .GetAsync(string.Format(CultureInfo.InvariantCulture, YgocdbSearchApiTemplate, Uri.EscapeDataString(name)))
+                .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             await using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
             using JsonDocument document = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
-            JsonElement data = default;
-            bool hasInvalidResponseData = document.RootElement.ValueKind != JsonValueKind.Object || !TryGetProperty(document.RootElement, "data", out data) || data.ValueKind != JsonValueKind.Array;
-
-            if (hasInvalidResponseData) {
+            if (document.RootElement.ValueKind != JsonValueKind.Object) {
                 return null;
             }
 
-            CardInfo?[] matches = data.EnumerateArray()
-                .Select(item => ReadCardInfo(item))
-                .Where(info => info is not null && info.Name.Equals(name, StringComparison.Ordinal))
+            JsonElement list = default;
+            bool hasYgocdb = TryGetProperty(document.RootElement, "result", out list) && list.ValueKind == JsonValueKind.Array;
+            bool hasLegacy = !hasYgocdb && TryGetProperty(document.RootElement, "data", out list) && list.ValueKind == JsonValueKind.Array;
+            if (!hasYgocdb && !hasLegacy) {
+                return null;
+            }
+
+            CardInfo?[] matches = list.EnumerateArray()
+                .Select(item => hasYgocdb ? ReadYgocdbCard(item) : ReadCardInfo(item))
+                .Where(info => info is not null && NameOrAliasEquals(info!, name))
                 .ToArray();
 
             if (matches.Length != 1 || !HasMetadata(matches[0]!)) {
@@ -343,7 +355,6 @@ public class CardInfoService : ICardInfoService {
             CardInfo match = matches[0]!;
             _cache.Cards[match.Id] = match;
 
-            // Exact-name enrichment also is not a full catalog refresh.
             if (_cache.SchemaVersion != CacheSchemaVersion) {
                 _cache.LastFullRefreshUtc = null;
             }
@@ -354,9 +365,16 @@ public class CardInfoService : ICardInfoService {
             return match;
         }
         catch {
-            // Valid legacy sessions remain loadable offline and when a name cannot be resolved.
             return null;
         }
+    }
+
+    private static bool NameOrAliasEquals(CardInfo card, string name) {
+        if (card.Name.Equals(name, StringComparison.Ordinal)) {
+            return true;
+        }
+
+        return card.Names.Any(alias => alias.Equals(name, StringComparison.Ordinal));
     }
 
     private bool IsFresh(CardMetadataCache cache) {
@@ -391,7 +409,7 @@ public class CardInfoService : ICardInfoService {
         byte[] json = await ReadCatalogBytesAsync(stream);
         CatalogDocument? document = JsonSerializer.Deserialize<CatalogDocument>(json, CatalogJsonOptions);
 
-        if (document?.Version is not (1 or 2) || document.Cards is null || document.Cards.Length is 0 or > MaximumCatalogCards) {
+        if (document?.Version is not (1 or 2 or 3) || document.Cards is null || document.Cards.Length is 0 or > MaximumCatalogCards) {
             throw new InvalidDataException("The local card catalog is empty, oversized, or unsupported.");
         }
 
@@ -402,6 +420,10 @@ public class CardInfoService : ICardInfoService {
                 || !card.ArtworkMetadataKnown || card.ArtworkImageIds is null || card.ArtworkImageIds.Count > 100
                 || card.ArtworkImageIds.Any(id => id <= 0) || !ids.Add(card.Id)) {
                 throw new InvalidDataException("The local card catalog contains an invalid card record.");
+            }
+            if (card.Names is not null && (card.Names.Count > 32 || card.Names.Any(value => string.IsNullOrWhiteSpace(value) || value.Length > 512)
+                || card.Names.Distinct(StringComparer.Ordinal).Count() != card.Names.Count)) {
+                throw new InvalidDataException("The local card catalog contains invalid search aliases.");
             }
             foreach (IReadOnlyList<string>? values in new[] { card.ResolvedNames, card.MentionedNames }) {
                 if (values is not null && (values.Count > 32 || values.Any(value => string.IsNullOrWhiteSpace(value) || value.Length > 512)
@@ -446,37 +468,61 @@ public class CardInfoService : ICardInfoService {
 
     private async Task FetchSingleCardAsync(int id) {
         try {
-            using HttpResponseMessage response = await _httpClient.GetAsync(string.Format(CultureInfo.InvariantCulture, SingleApiTemplate, id)).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            CardInfo? info = await TryFetchYgocdbCardAsync(id).ConfigureAwait(false);
 
-            await using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using JsonDocument document = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
-            JsonElement data = default;
+            if (info is not null) {
+                _cache.Cards[id] = info.Id == id ? info : info with { Id = id };
 
-            bool hasValidResponseData = document.RootElement.ValueKind == JsonValueKind.Object
-                && TryGetProperty(document.RootElement, "data", out data)
-                && data.ValueKind == JsonValueKind.Array;
-
-            if (hasValidResponseData) {
-                // The query passcode remains the cache identity, including alternate passcodes.
-                CardInfo? info = data.EnumerateArray().Select(item => ReadCardInfo(item, id)).FirstOrDefault(card => card is not null);
-
-                if (info is not null) {
-                    _cache.Cards[id] = info;
-
-                    // Per-card enrichment is not a full catalog refresh.
-                    if (_cache.SchemaVersion != CacheSchemaVersion) {
-                        _cache.LastFullRefreshUtc = null;
-                    }
-
-                    _cache.SchemaVersion = CacheSchemaVersion;
-                    await SaveCacheAsync().ConfigureAwait(false);
+                if (_cache.SchemaVersion != CacheSchemaVersion) {
+                    _cache.LastFullRefreshUtc = null;
                 }
+
+                _cache.SchemaVersion = CacheSchemaVersion;
+                await SaveCacheAsync().ConfigureAwait(false);
             }
         }
         catch {
             // Keep imports usable by falling back to the numeric card ID.
         }
+    }
+
+    private async Task<CardInfo?> TryFetchYgocdbCardAsync(int id) {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
+        using HttpResponseMessage response = await _httpClient
+            .GetAsync(string.Format(CultureInfo.InvariantCulture, YgocdbCardApiTemplate, id), timeout.Token)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) {
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode) {
+            System.Net.Http.Headers.RetryConditionHeaderValue? retry = response.Headers.RetryAfter;
+            throw new CardArtworkLookupException(retry?.Delta ?? (retry?.Date is DateTimeOffset date
+                ? date - _timeProvider.GetUtcNow()
+                : TimeSpan.FromMinutes(1)));
+        }
+
+        await using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+        return ReadRemoteCard(document.RootElement, id);
+    }
+
+    private static CardInfo? ReadRemoteCard(JsonElement root, int? cacheId = null) {
+        // ygocdb single-card object
+        CardInfo? ygocdb = ReadYgocdbCard(root);
+        if (ygocdb is not null) {
+            return ygocdb;
+        }
+
+        // Legacy / test YGOPRODeck envelope: { "data": [ {card}, ... ] }
+        if (root.ValueKind == JsonValueKind.Object
+            && TryGetProperty(root, "data", out JsonElement data)
+            && data.ValueKind == JsonValueKind.Array) {
+            return data.EnumerateArray().Select(item => ReadCardInfo(item, cacheId)).FirstOrDefault(card => card is not null);
+        }
+
+        return ReadCardInfo(root, cacheId);
     }
 
     private async Task<CardMetadataCache> LoadCacheAsync() {
@@ -519,7 +565,7 @@ public class CardInfoService : ICardInfoService {
         bool hasInvalidCacheHeader = !TryGetProperty(root, "schemaVersion", out JsonElement versionProperty)
             || versionProperty.ValueKind != JsonValueKind.Number
             || !versionProperty.TryGetInt32(out version)
-            || version is not (1 or CacheSchemaVersion)
+            || version is not (1 or 2 or CacheSchemaVersion)
             || !TryGetProperty(root, "cards", out cardsProperty)
             || cardsProperty.ValueKind != JsonValueKind.Object;
 
@@ -599,6 +645,116 @@ public class CardInfoService : ICardInfoService {
         return true;
     }
 
+    private static CardInfo? ReadYgocdbCard(JsonElement item) {
+        if (item.ValueKind != JsonValueKind.Object) {
+            return null;
+        }
+
+        int? id = Number(item, "id");
+        if (id is null || id <= 0) {
+            return null;
+        }
+
+        List<string> aliases = [];
+        void AddAlias(string? value) {
+            if (!string.IsNullOrWhiteSpace(value)) {
+                string trimmed = value.Trim();
+                if (trimmed.Length <= 512 && !aliases.Contains(trimmed, StringComparer.Ordinal)) {
+                    aliases.Add(trimmed);
+                }
+            }
+        }
+
+        AddAlias(Text(item, "sc_name"));
+        AddAlias(Text(item, "cn_name"));
+        AddAlias(Text(item, "md_name"));
+        AddAlias(Text(item, "jp_name"));
+        AddAlias(Text(item, "en_name"));
+        AddAlias(Text(item, "nwbbs_n"));
+        AddAlias(Text(item, "cnocg_n"));
+
+        if (TryGetProperty(item, "text", out JsonElement textElement) && textElement.ValueKind == JsonValueKind.Object) {
+            AddAlias(Text(textElement, "sc_name"));
+            AddAlias(Text(textElement, "cn_name"));
+            AddAlias(Text(textElement, "md_name"));
+            AddAlias(Text(textElement, "name"));
+            AddAlias(Text(textElement, "jp_name"));
+            AddAlias(Text(textElement, "en_name"));
+        }
+
+        string? name = aliases.Count > 0 ? aliases[0] : null;
+        if (string.IsNullOrWhiteSpace(name)) {
+            return null;
+        }
+
+        string? type = null;
+        string? frameType = null;
+        string? race = null;
+        string? attribute = null;
+        int? level = null;
+        int? linkVal = null;
+        int? scale = null;
+        int? ot = null;
+
+        if (TryGetProperty(item, "data", out JsonElement data) && data.ValueKind == JsonValueKind.Object) {
+            // Runtime fallback keeps names; objective bitmasks are best-effort via catalog rebuild.
+            // Prefer catalog for type/attr/race. Here we only surface ot when present.
+            ot = Number(data, "ot");
+        }
+
+        // Prefer types string hint when present (Chinese), else leave type empty so HasMetadata may fail
+        // and callers keep using the bundled catalog.
+        if (TryGetProperty(item, "text", out JsonElement textNode) && textNode.ValueKind == JsonValueKind.Object) {
+            string? types = Text(textNode, "types");
+            if (!string.IsNullOrWhiteSpace(types)) {
+                if (types.Contains("魔法", StringComparison.Ordinal)) {
+                    type = "Spell Card";
+                    frameType = "spell";
+                }
+                else if (types.Contains("陷阱", StringComparison.Ordinal)) {
+                    type = "Trap Card";
+                    frameType = "trap";
+                }
+                else if (types.Contains("怪兽", StringComparison.Ordinal) || types.Contains("モンスター", StringComparison.Ordinal)) {
+                    type = types.Contains("连接", StringComparison.Ordinal) || types.Contains("リンク", StringComparison.Ordinal)
+                        ? "Link Monster"
+                        : types.Contains("调整", StringComparison.Ordinal) || types.Contains("チューナー", StringComparison.Ordinal)
+                            ? "Tuner Monster"
+                            : "Effect Monster";
+                    frameType = type.StartsWith("Link", StringComparison.Ordinal) ? "link" : "effect";
+                }
+            }
+        }
+
+        return new CardInfo {
+            Id = id.Value,
+            Name = name,
+            Names = aliases,
+            Cid = Number(item, "cid"),
+            Ot = ot,
+            Type = type,
+            FrameType = frameType,
+            Race = race,
+            Attribute = attribute,
+            Level = level,
+            LinkVal = linkVal,
+            Scale = scale,
+            CanonicalCardId = id.Value,
+            ArtworkImageIds = [id.Value],
+            ArtworkMetadataKnown = true
+        };
+
+        static string? Text(JsonElement element, string key) =>
+            TryGetProperty(element, key, out JsonElement value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+
+        static int? Number(JsonElement element, string key) =>
+            TryGetProperty(element, key, out JsonElement value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int number)
+                ? number
+                : null;
+    }
+
     private static CardInfo? ReadCardInfo(JsonElement item, int? cacheId = null, bool fromCache = false) {
         if (item.ValueKind != JsonValueKind.Object) {
             return null;
@@ -614,18 +770,41 @@ public class CardInfoService : ICardInfoService {
         return new CardInfo {
             Id = id.Value,
             Name = name,
+            Names = ReadNames(),
+            Cid = Number("cid"),
+            Ot = Number("ot"),
             Type = Text("type"),
             FrameType = Text("frameType"),
             Race = Text("race"),
             Attribute = Text("attribute"),
             Level = Number("level"),
-            LinkVal = Number("linkval"),
+            LinkVal = Number("linkval") ?? Number("linkVal"),
             Scale = Number("scale"),
             Archetype = Text("archetype"),
             CanonicalCardId = fromCache ? Number("canonicalCardId") : Number("id"),
             ArtworkImageIds = ReadImageIds(),
             ArtworkMetadataKnown = !fromCache || (TryGetProperty(item, "artworkMetadataKnown", out JsonElement known) && known.ValueKind == JsonValueKind.True)
         };
+
+        IReadOnlyList<string> ReadNames() {
+            if (!TryGetProperty(item, "names", out JsonElement names) || names.ValueKind != JsonValueKind.Array) {
+                return Array.Empty<string>();
+            }
+
+            List<string> result = new();
+            foreach (JsonElement entry in names.EnumerateArray()) {
+                if (entry.ValueKind != JsonValueKind.String) {
+                    continue;
+                }
+
+                string? value = entry.GetString();
+                if (!string.IsNullOrWhiteSpace(value) && value.Length <= 512 && !result.Contains(value, StringComparer.Ordinal)) {
+                    result.Add(value);
+                }
+            }
+
+            return result.Count == 0 ? Array.Empty<string>() : result.AsReadOnly();
+        }
 
         IReadOnlyList<int> ReadImageIds() {
             JsonElement images;

@@ -8,6 +8,7 @@ using Microsoft.JSInterop;
 using Moq;
 using YGOProbabilityCalculatorBlazor.Components.ProbabilityCalculator;
 using YGOProbabilityCalculatorBlazor.Models;
+using YGOProbabilityCalculatorBlazor.Services.Localization;
 using YGOProbabilityCalculatorBlazor.Services.DeckImport;
 using YGOProbabilityCalculatorBlazor.Services.Interface;
 using YGOProbabilityCalculatorBlazor.Services.ProbabilityCalculator;
@@ -55,8 +56,24 @@ public abstract class CalculatorEditorTestBase {
     // before asserting or editing again, and retain pending calculation tasks until release.
     // Patched AngleSharp is binary-incompatible with bUnit 1.x's FindAll indexer.
     // Use Single for unique queries or ToArray before indexing; requery after edits.
-    protected static IElement Button(IRenderedFragment fragment, string text) =>
-        fragment.FindAll("button").Single(element => element.TextContent.Trim() == text || element.GetAttribute("aria-label") == text);
+    protected static IElement Button(IRenderedFragment fragment, string text) {
+        string[] labels = ChromeLabels(text);
+        return fragment.FindAll("button").Single(element =>
+            labels.Any(label => element.TextContent.Trim() == label || element.GetAttribute("aria-label") == label));
+    }
+
+    protected static string[] ChromeLabels(string english) => english switch {
+        "Calculate" => [UiStrings.Calculate, "Calculate"],
+        "Cancel" => [UiStrings.Cancel, "Cancel"],
+        "Import" => [UiStrings.Import, "Import"],
+        "导入 YDK" => [UiStrings.ImportYdk, "导入 YDK"],
+        "Import YDKe" => [UiStrings.ImportYdke, "Import YDKe"],
+        "Add card" => [UiStrings.AddCard, "Add card"],
+        "取消计算" => ["取消计算", "取消计算"],
+        "取消精确升级" => ["取消精确升级", "取消精确升级"],
+        "计算设置" => [UiStrings.Settings, "计算设置"],
+        _ => [english]
+    };
 
     protected static void OpenSimulation(IRenderedFragment editor) {
         if (editor.FindAll(".simulation-editor").Count == 0) {

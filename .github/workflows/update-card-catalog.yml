@@ -1,0 +1,64 @@
+name: Update card catalog (ygocdb)
+
+on:
+  schedule:
+    # ~00:00 Asia/Shanghai (UTC+8)
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check ygocdb md5
+        id: check
+        run: |
+          set -euo pipefail
+          if node infrastructure/card-catalog/prepare-catalog.mjs --check-update --md5-file infrastructure/card-catalog/cards.zip.md5; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            status=$?
+            if [ "$status" -eq 2 ]; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              exit "$status"
+            fi
+          fi
+
+      - name: Rebuild catalog when md5 changed
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          node infrastructure/card-catalog/prepare-catalog.mjs \
+            --output YGOProbabilityCalculatorBlazor/wwwroot/data/card-catalog.v1.json \
+            --md5-file infrastructure/card-catalog/cards.zip.md5
+          node --test infrastructure/card-catalog/prepare-catalog.test.mjs
+
+      - name: Commit catalog refresh
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            YGOProbabilityCalculatorBlazor/wwwroot/data/card-catalog.v1.json \
+            infrastructure/card-catalog/cards.zip.md5
+          if git diff --cached --quiet; then
+            echo "No file changes after rebuild"
+            exit 0
+          fi
+          git commit -m "chore: refresh ygocdb card catalog"
+          git push origin HEAD:dev

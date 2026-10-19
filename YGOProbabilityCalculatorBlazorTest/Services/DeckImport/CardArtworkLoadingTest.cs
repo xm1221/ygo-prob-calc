@@ -39,7 +39,7 @@ public class CardArtworkLoadingTest {
         CardArtworkService service = new(info);
         Assert.That(await service.GetArtworkUrlAsync(1), Does.EndWith("/small/1.jpg"));
         Assert.That(await service.GetArtworkUrlAsync(1), Does.EndWith("/small/1.jpg"));
-        Assert.That(handler.Requests, Is.EqualTo(new[] { "https://db.ygoprodeck.com/api/v7/cardinfo.php?id=1" }));
+        Assert.That(handler.Requests, Is.EqualTo(new[] { "https://ygocdb.com/api/v0/card/1" }));
     }
 
     [Test]

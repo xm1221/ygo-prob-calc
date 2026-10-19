@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@using YGOProbabilityCalculatorBlazor.Services.Localization
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -7,28 +8,28 @@
         <div class="top-row">
             <div class="top-row-inner">
                 @if (IsHelpPage) {
-                    <div class="h3 app-title mb-0">Yu-Gi-Oh! Advanced Probability Calculator</div>
+                    <div class="h3 app-title mb-0">@UiStrings.AppTitle</div>
                 }
                 else {
-                    <h1 class="h3 app-title mb-0">Yu-Gi-Oh! Advanced Probability Calculator</h1>
+                    <h1 class="h3 app-title mb-0">@UiStrings.AppTitle</h1>
                 }
                 <div class="top-row-controls">
-                    <label class="visually-hidden" for="theme-preference">Color theme preference</label>
+                    <label class="visually-hidden" for="theme-preference">@UiStrings.ThemePreference</label>
                     <select id="theme-preference"
                             class="form-select form-select-sm theme-select"
-                            aria-label="Color theme preference"
-                            title="Color theme preference"
+                            aria-label="@UiStrings.ThemePreference"
+                            title="@UiStrings.ThemePreference"
                             value="@ThemePreference"
                             @onchange="ChangeThemePreference">
-                        <option value="system">System</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
+                        <option value="system">@UiStrings.ThemeSystem</option>
+                        <option value="light">@UiStrings.ThemeLight</option>
+                        <option value="dark">@UiStrings.ThemeDark</option>
                     </select>
                     @if (IsHelpPage) {
-                        <a href="/" class="btn btn-outline-primary">Back</a>
+                        <a href="/" class="btn btn-outline-primary">@UiStrings.Back</a>
                     }
                     else {
-                        <a href="/help" class="btn btn-outline-primary">Help</a>
+                        <a href="/help" class="btn btn-outline-primary">@UiStrings.Help</a>
                     }
                 </div>
             </div>

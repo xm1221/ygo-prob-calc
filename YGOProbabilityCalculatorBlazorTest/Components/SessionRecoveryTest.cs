@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using YGOProbabilityCalculatorBlazor.Components.ProbabilityCalculator;
 using YGOProbabilityCalculatorBlazor.Models;
+using YGOProbabilityCalculatorBlazor.Services.Localization;
 using YGOProbabilityCalculatorBlazor.Services.Interface;
 using YGOProbabilityCalculatorBlazor.Services.ProbabilityCalculator;
 using YGOProbabilityCalculatorBlazor.Services.BackgroundCalculation;
@@ -81,8 +82,14 @@ public class SessionRecoveryTest {
         }
     }
 
-    private static AngleSharp.Dom.IElement Button(IRenderedFragment cut, string text) =>
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == text);
+    private static AngleSharp.Dom.IElement Button(IRenderedFragment cut, string text) {
+        string[] labels = text switch {
+            "Calculate" => [UiStrings.Calculate, "Calculate"],
+            "Cancel" => [UiStrings.Cancel, "Cancel"],
+            _ => [text]
+        };
+        return cut.FindAll("button").Single(button => labels.Any(label => button.TextContent.Trim() == label));
+    }
 
     [Test]
     public void DefaultStartupAndUnrelatedRendersNeverQueueRecovery() {

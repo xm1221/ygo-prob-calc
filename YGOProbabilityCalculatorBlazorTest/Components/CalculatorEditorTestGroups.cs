@@ -79,7 +79,7 @@ public sealed class CalculatorEditorTestGroups : CalculatorEditorTestBase {
         IElement groupContent = groupManagement.QuerySelector(".mb-4")!;
 
         Assert.Multiple(() => {
-            Assert.That(categoryManagement.QuerySelector("summary")!.TextContent.Trim(), Does.StartWith("Categories"));
+            Assert.That(categoryManagement.QuerySelector("summary")!.TextContent.Trim(), Does.StartWith("分类"));
             Assert.That(categoryManagement.QuerySelector("h4, h5"), Is.Null);
             Assert.That(categoryContent.Children.First().ClassList, Does.Contain("editor-add-row"));
             Assert.That(categoryManagement.QuerySelector(".editor-add-row input[aria-label='Category name']"), Is.Not.Null);
@@ -93,7 +93,7 @@ public sealed class CalculatorEditorTestGroups : CalculatorEditorTestBase {
             Assert.That(groupManagement.QuerySelector(".editor-add-row input[aria-label='New combo group name']"), Is.Not.Null);
             Assert.That(groupManagement.QuerySelector(".editor-add-row button")!.HasAttribute("disabled"), Is.True);
             Assert.That(groupManagement.HasAttribute("open"), Is.False);
-            Assert.That(cut.FindComponent<ComboListEditor>().Find("h4").TextContent.Trim(), Is.EqualTo("Combos"));
+            Assert.That(cut.FindComponent<ComboListEditor>().Find("h4").TextContent.Trim(), Is.EqualTo("Combo"));
         });
     }
 

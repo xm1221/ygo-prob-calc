@@ -356,10 +356,10 @@ public class CardInfoServiceTests {
         Assert.That(result[name].Id, Is.EqualTo(14558127));
         Assert.That(result[name].Type, Is.EqualTo("Tuner Monster"));
         Assert.That(handler.Requests, Has.Length.EqualTo(1));
-        Assert.That(Uri.UnescapeDataString(new Uri(handler.Requests.Single()).Query), Is.EqualTo("?name=" + name));
+        Assert.That(Uri.UnescapeDataString(new Uri(handler.Requests.Single()).Query), Is.EqualTo("?search=" + name));
         Assert.That(handler.Requests.Single(), Does.Not.Contain("fname=").And.Not.Contain("?id="));
         using JsonDocument document = JsonDocument.Parse(storage.RawCache!);
-        Assert.That(document.RootElement.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(2));
+        Assert.That(document.RootElement.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(3));
         if (version == 1) {
             Assert.That(document.RootElement.GetProperty("LastFullRefreshUtc").ValueKind, Is.EqualTo(JsonValueKind.Null));
         }
@@ -382,7 +382,7 @@ public class CardInfoServiceTests {
         CardInfoService service = new(storage, client, new TestTimeProvider(Now));
         Assert.That(await service.GetCardInfoByExactNamesAsync(["Exact", "Exact"]), Is.Empty);
         Assert.That(handler.Requests, Has.Length.EqualTo(1));
-        Assert.That(new Uri(handler.Requests.Single()).Query, Is.EqualTo("?name=Exact"));
+        Assert.That(new Uri(handler.Requests.Single()).Query, Is.EqualTo("?search=Exact"));
         Assert.That(storage.WriteCount, Is.Zero);
     }
 
@@ -403,7 +403,7 @@ public class CardInfoServiceTests {
     [TestCase(true)]
     public async Task ExactNamesNetworkFailuresDoNotFailTheOtherNames(bool throws) {
         RecordingHttpMessageHandler handler = new((request, _) => {
-            if (request.RequestUri!.Query.Contains("Missing")) {
+            if (request.RequestUri!.Query.Contains("Missing", StringComparison.Ordinal)) {
                 if (throws) {
                     throw new HttpRequestException("Offline");
                 }
@@ -438,7 +438,7 @@ public class CardInfoServiceTests {
         CardInfoService next = new(storage, nextClient, new TestTimeProvider(Now));
         Assert.That(await next.GetCardInfoAsync(1234), Is.EqualTo(info));
         Assert.That(nextHandler.Requests, Has.Length.EqualTo(1));
-        Assert.That(nextHandler.Requests.Single(), Does.EndWith("cardinfo.php?id=1234"));
+        Assert.That(nextHandler.Requests.Single(), Does.Contain("/card/1234"));
     }
 
     [Test]
@@ -479,7 +479,7 @@ public class CardInfoServiceTests {
         CardInfoService service = new(storage, client, new TestTimeProvider(Now));
         Assert.That((await service.GetCardInfoAsync(1234)).Scale, Is.EqualTo(8));
         using JsonDocument document = JsonDocument.Parse(storage.RawCache!);
-        Assert.That(document.RootElement.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(2));
+        Assert.That(document.RootElement.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(3));
         Assert.That(document.RootElement.GetProperty("LastFullRefreshUtc").ValueKind, Is.EqualTo(JsonValueKind.Null));
         Assert.That(document.RootElement.GetProperty("Cards").GetProperty("5678").GetProperty("Name").GetString(), Is.EqualTo("Other old name"));
         RecordingHttpMessageHandler nextHandler = HandlerWithTargetedCards(200, (1234, "Current"));
@@ -559,7 +559,7 @@ public class CardInfoServiceTests {
         Assert.That(result, Is.EqualTo("Updated Name"));
         Assert.That(handler.Requests, Has.Length.EqualTo(1));
         AssertPersistedCache(storage.RawCache, Now.AddDays(-7), (1234, "Updated Name"));
-        Assert.That(handler.Requests.Single(), Does.EndWith("cardinfo.php?id=1234"));
+        Assert.That(handler.Requests.Single(), Does.Contain("/card/1234"));
     }
 
     [Test]
@@ -736,7 +736,7 @@ public class CardInfoServiceTests {
 
         using (JsonDocument document = JsonDocument.Parse(storage.RawCache!)) {
             JsonElement root = document.RootElement;
-            Assert.That(root.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(2));
+            Assert.That(root.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(3));
             Assert.That(root.GetProperty("LastFullRefreshUtc").ValueKind, Is.EqualTo(JsonValueKind.Null));
             Assert.That(root.GetProperty("Cards").GetProperty("1234").GetProperty("Name").GetString(), Is.EqualTo("Legacy Name"));
             Assert.That(root.GetProperty("Cards").GetProperty("5678").GetProperty("Name").GetString(), Is.EqualTo("New Card"));
@@ -796,10 +796,15 @@ public class CardInfoServiceTests {
 
     private static RecordingHttpMessageHandler HandlerWithTargetedCards(int statusCode, params (int Id, string Name)[] cards) =>
         new((request, _) => {
+            string path = request.RequestUri!.AbsolutePath;
             string query = request.RequestUri!.Query;
             (int Id, string Name)[] responseCards = cards
-                .Where(card => query == $"?id={card.Id}")
+                .Where(card =>
+                    path.EndsWith($"/card/{card.Id}", StringComparison.Ordinal)
+                    || query == $"?id={card.Id}"
+                    || query == $"?search={Uri.EscapeDataString(card.Name)}")
                 .ToArray();
+            // Prefer YGOPRODeck-shaped bulk JSON (still parsed by ReadRemoteCard) for id lookups.
             return Task.FromResult(Response((HttpStatusCode)statusCode, CreateBulkJson(responseCards)));
         });
 
@@ -830,7 +835,7 @@ public class CardInfoServiceTests {
         Assert.That(json, Is.Not.Null);
         using JsonDocument document = JsonDocument.Parse(json!);
         JsonElement root = document.RootElement;
-        Assert.That(root.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(2));
+        Assert.That(root.GetProperty("SchemaVersion").GetInt32(), Is.EqualTo(3));
         JsonElement timestamp = root.GetProperty("LastFullRefreshUtc");
         if (expectedTimestamp is DateTimeOffset expected) {
             Assert.That(timestamp.GetDateTimeOffset(), Is.EqualTo(expected));

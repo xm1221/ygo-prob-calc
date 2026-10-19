@@ -248,7 +248,7 @@ public sealed class CalculatorEditorTestCardProperties : CalculatorEditorTestBas
     public void SessionFileActionsExposeOneKeyboardAccessibleInputEach() {
         IRenderedComponent<ProbabilityCalculatorComponent> cut = Render();
         foreach ((string id, string name, string extension) in new[] {
-            ("fileInput", "Import YDK", ".ydk"),
+            ("fileInput", "导入 YDK", ".ydk"),
             ("sessionFileInput", "Load Session", ".json")
         }) {
             IRefreshableElementCollection<IElement> inputs = cut.FindAll($"input#{id}");
